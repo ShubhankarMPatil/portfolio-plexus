@@ -1,28 +1,39 @@
 "use client";
-import React, { Suspense } from "react";
+import React, { Suspense, useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stats } from "@react-three/drei";
 import * as THREE from "three";
 import Lighting from "./Lighting";
 import Terrain from "./Terrain";
+import MusicReactiveLines from "./MusicReactiveLines";
+import useAudioAnalyzer from "../../hooks/useAudioAnalyzer";
 
 export default function SceneWrapper() {
-  return (
-    <Canvas
-      camera={{ position: [0, 15, 35], fov: 60 }}
-      gl={{ antialias: true }}
-      onCreated={({ gl, scene }) => {
-        gl.setClearColor(new THREE.Color(0x000000));
-        scene.fog = new THREE.FogExp2(0x000000, 0.04);
-      }}
-    >
-      <Suspense fallback={null}>
-        <Lighting />
-        <Terrain />
-      </Suspense>
+  const audioRef = useRef(null);
+  const meshRef = useRef(null);
+  const reactivity = useAudioAnalyzer(audioRef);
 
-      <OrbitControls enablePan={false} enableZoom enableRotate />
-      <Stats />
-    </Canvas>
+  return (
+    <>
+      <audio ref={audioRef} src="/audio/background.mp3" controls loop />
+
+      <Canvas
+        camera={{ position: [0, 15, 35], fov: 60 }}
+        gl={{ antialias: true }}
+        onCreated={({ gl, scene }) => {
+          gl.setClearColor(new THREE.Color(0x000000));
+          scene.fog = new THREE.FogExp2(0x000000, 0.04);
+        }}
+      >
+        <Suspense fallback={null}>
+          <Lighting />
+          <Terrain ref={meshRef} />
+          <MusicReactiveLines meshRef={meshRef} reactivity={reactivity} />
+        </Suspense>
+
+        <OrbitControls enablePan={false} enableZoom enableRotate />
+        <Stats />
+      </Canvas>
+    </>
   );
 }
