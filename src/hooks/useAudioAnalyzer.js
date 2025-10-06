@@ -1,48 +1,52 @@
-import { useEffect, useRef, useState } from "react";
+import { useState, useEffect } from "react";
 
 export default function useAudioAnalyzer(audioRef) {
-  const [reactivity, setReactivity] = useState(0);
-  const analyzerRef = useRef(null);
-  const dataArrayRef = useRef(null);
+  const [audioContext, setAudioContext] = useState(null);
+  const [analyser, setAnalyser] = useState(null);
+  const [dataArray, setDataArray] = useState(new Uint8Array(64));
+  const [isPlaying, setIsPlaying] = useState(false);
 
   useEffect(() => {
-    if (!audioRef?.current) return;
+    if (!audioRef.current) return;
 
-    const audioCtx = new (window.AudioContext || window.webkitAudioContext)();
-    const source = audioCtx.createMediaElementSource(audioRef.current);
-    const analyzer = audioCtx.createAnalyser();
+    const context = new (window.AudioContext || window.webkitAudioContext)();
+    const source = context.createMediaElementSource(audioRef.current);
+    const analyserNode = context.createAnalyser();
 
-    analyzer.fftSize = 256;
-    const bufferLength = analyzer.frequencyBinCount;
-    const dataArray = new Uint8Array(bufferLength);
+    analyserNode.fftSize = 128;
+    source.connect(analyserNode);
+    analyserNode.connect(context.destination);
 
-    source.connect(analyzer);
-    analyzer.connect(audioCtx.destination);
+    setAudioContext(context);
+    setAnalyser(analyserNode);
 
-    analyzerRef.current = analyzer;
-    dataArrayRef.current = dataArray;
+    const bufferLength = analyserNode.frequencyBinCount;
+    const newArray = new Uint8Array(bufferLength);
 
-    const update = () => {
-      if (!analyzerRef.current) return;
-      analyzerRef.current.getByteFrequencyData(dataArrayRef.current);
-
-      // Average the frequency data to get overall intensity
-      const avg =
-        dataArrayRef.current.reduce((a, b) => a + b, 0) /
-        dataArrayRef.current.length;
-      setReactivity(avg / 255); // normalize between 0–1
-
-      requestAnimationFrame(update);
+    const tick = () => {
+      analyserNode.getByteFrequencyData(newArray);
+      setDataArray([...newArray]);
+      requestAnimationFrame(tick);
     };
-
-    update();
+    tick();
 
     return () => {
-      analyzer.disconnect();
       source.disconnect();
-      audioCtx.close();
+      analyserNode.disconnect();
     };
   }, [audioRef]);
 
-  return reactivity;
+  const togglePlayback = () => {
+    if (!audioRef.current) return;
+    if (audioRef.current.paused) {
+      audioRef.current.play();
+      audioContext?.resume();
+      setIsPlaying(true);
+    } else {
+      audioRef.current.pause();
+      setIsPlaying(false);
+    }
+  };
+
+  return { dataArray, isPlaying, togglePlayback };
 }

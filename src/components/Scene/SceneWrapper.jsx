@@ -1,39 +1,51 @@
 "use client";
-import React, { Suspense, useRef } from "react";
+import React, { useRef } from "react";
 import { Canvas } from "@react-three/fiber";
-import { OrbitControls, Stats } from "@react-three/drei";
-import * as THREE from "three";
-import Lighting from "./Lighting";
+import { OrbitControls } from "@react-three/drei";
+
 import Terrain from "./Terrain";
 import MusicReactiveLines from "./MusicReactiveLines";
+import Lighting from "./Lighting";
 import useAudioAnalyzer from "../../hooks/useAudioAnalyzer";
 
 export default function SceneWrapper() {
-  const audioRef = useRef(null);
-  const meshRef = useRef(null);
-  const reactivity = useAudioAnalyzer(audioRef);
+  const audioRef = useRef();
+  const { dataArray, isPlaying, togglePlayback } = useAudioAnalyzer(audioRef);
 
   return (
     <>
-      <audio ref={audioRef} src="/audio/background.mp3" controls loop />
+      {/* Audio DOM element outside Canvas */}
+      <audio
+        ref={audioRef}
+        src="/audio/background.mp3"
+        controls
+        crossOrigin="anonymous"
+        loop
+        style={{ position: "absolute", top: 20, left: 20, zIndex: 10 }}
+      />
 
-      <Canvas
-        camera={{ position: [0, 15, 35], fov: 60 }}
-        gl={{ antialias: true }}
-        onCreated={({ gl, scene }) => {
-          gl.setClearColor(new THREE.Color(0x000000));
-          scene.fog = new THREE.FogExp2(0x000000, 0.04);
-        }}
-      >
-        <Suspense fallback={null}>
-          <Lighting />
-          <Terrain ref={meshRef} />
-          <MusicReactiveLines meshRef={meshRef} reactivity={reactivity} />
-        </Suspense>
-
+      <Canvas camera={{ position: [0, 22, 45], fov: 60 }}>
+        <Lighting />
+        <Terrain audioData={dataArray} />
+        <MusicReactiveLines audioData={dataArray} isPlaying={isPlaying} />
         <OrbitControls enablePan={false} enableZoom enableRotate />
-        <Stats />
       </Canvas>
+
+      {/* Play/Pause Button (optional) */}
+      <div style={{ position: "absolute", bottom: 20, left: 20 }}>
+        <button
+          style={{
+            background: "white",
+            border: "none",
+            padding: "8px 16px",
+            borderRadius: "6px",
+            cursor: "pointer",
+          }}
+          onClick={togglePlayback}
+        >
+          {isPlaying ? "Pause Music" : "Play Music"}
+        </button>
+      </div>
     </>
   );
 }
