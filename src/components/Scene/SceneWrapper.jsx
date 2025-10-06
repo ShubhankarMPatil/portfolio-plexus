@@ -4,19 +4,23 @@ import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
 import * as THREE from "three";
 
-
-import Terrain from "./Terrain";
+import InfiniteTerrain from "./InfiniteTerrain";
 import MusicReactiveLines from "./MusicReactiveLines";
 import Lighting from "./Lighting";
 import useAudioAnalyzer from "../../hooks/useAudioAnalyzer";
+import CameraMover from "./CameraMover";
+
 
 export default function SceneWrapper() {
   const audioRef = useRef();
   const { dataArray, isPlaying, togglePlayback } = useAudioAnalyzer(audioRef);
 
+  // 🎨 Vaporwave colors (adjust these for pink/blue gradient)
+  const fogColor = 0x000000; // dark violet / black
+  const lineColor = 0xffffff; // white lines
+
   return (
     <>
-      {/* Audio DOM element outside Canvas */}
       <audio
         ref={audioRef}
         src="/audio/background.mp3"
@@ -28,15 +32,18 @@ export default function SceneWrapper() {
 
       <Canvas
         camera={{ position: [0, 22, 45], fov: 60 }}
-        fog={new THREE.Fog(0x120025, 30, 120)} // near=30, far=120, color=purple-blue tint
+        gl={{ antialias: true }}
+        onCreated={({ scene, gl }) => {
+          scene.fog = new THREE.Fog(fogColor, 10, 150);
+          gl.setClearColor(fogColor);
+        }}
       >
         <Lighting />
-        <Terrain audioData={dataArray} />
+        <InfiniteTerrain audioData={dataArray} />
         <MusicReactiveLines audioData={dataArray} isPlaying={isPlaying} />
-        <OrbitControls enablePan={false} enableZoom enableRotate />
+        <CameraMover speed={0.02} />
       </Canvas>
 
-      {/* Play/Pause Button (optional) */}
       <div style={{ position: "absolute", bottom: 20, left: 20 }}>
         <button
           style={{
