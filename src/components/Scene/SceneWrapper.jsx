@@ -2,6 +2,8 @@
 import React, { useRef } from "react";
 import { Canvas } from "@react-three/fiber";
 import { OrbitControls } from "@react-three/drei";
+import * as THREE from "three";
+
 
 import Terrain from "./Terrain";
 import MusicReactiveLines from "./MusicReactiveLines";
@@ -24,7 +26,10 @@ export default function SceneWrapper() {
         style={{ position: "absolute", top: 20, left: 20, zIndex: 10 }}
       />
 
-      <Canvas camera={{ position: [0, 22, 45], fov: 60 }}>
+      <Canvas
+        camera={{ position: [0, 22, 45], fov: 60 }}
+        fog={new THREE.Fog(0x120025, 30, 120)} // near=30, far=120, color=purple-blue tint
+      >
         <Lighting />
         <Terrain audioData={dataArray} />
         <MusicReactiveLines audioData={dataArray} isPlaying={isPlaying} />

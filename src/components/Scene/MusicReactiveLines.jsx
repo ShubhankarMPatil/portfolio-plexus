@@ -3,51 +3,42 @@ import React, { useRef, useMemo } from "react";
 import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 
-export default function MusicReactiveLines({ width = 200, depth = 200, segments = 120, audioData, isPlaying }) {
-  const meshRef = useRef();      // ✅ initialize ref
-  const seedsRef = useRef();
+export default function MusicReactiveLines({
+  width = 200,
+  depth = 200,
+  segments = 120,
+  audioData,
+  isPlaying,
+}) {
+  const meshRef = useRef();
 
   const geometry = useMemo(() => {
     const geo = new THREE.PlaneGeometry(width, depth, segments, segments);
     geo.rotateX(-Math.PI / 2);
-
-    // random seeds for idle pulsing
-    const seeds = new Float32Array(geo.attributes.position.count);
-    for (let i = 0; i < seeds.length; i++) seeds[i] = Math.random();
-    seedsRef.current = seeds;
-
-    // colors for lines
-    const colors = new Float32Array(geo.attributes.position.count * 3);
-    for (let i = 0; i < colors.length; i += 3) {
-      colors[i] = colors[i + 1] = colors[i + 2] = 0.8; // base brightness
-    }
-    geo.setAttribute("color", new THREE.BufferAttribute(colors, 3));
-
-    return geo;
+    const edges = new THREE.EdgesGeometry(geo);
+    return edges;
   }, [width, depth, segments]);
 
-  const material = useMemo(() => new THREE.LineBasicMaterial({
-    vertexColors: true,
-    toneMapped: false
-  }), []);
+  const material = useMemo(
+    () =>
+      new THREE.LineBasicMaterial({
+        color: 0xffffff, // keep white for now
+      }),
+    []
+  );
 
   useFrame(({ clock }) => {
-    if (!meshRef.current) return; // ✅ Guard added
+    if (!meshRef.current) return;
 
-    const colors = meshRef.current.geometry.attributes.color.array;
+    // Simple pulsing scale for music reaction
     const time = clock.getElapsedTime();
+    const audioFactor =
+      audioData && audioData.length
+        ? audioData.reduce((a, b) => a + b, 0) / (audioData.length * 255)
+        : 0;
 
-    for (let i = 0; i < colors.length; i += 3) {
-      const seed = seedsRef.current[i / 3];
-      const audioVal = audioData ? audioData[i % 64] / 255 : 0;
-      const pulse = isPlaying
-        ? 0.2 + audioVal * 0.8
-        : 0.2 + 0.5 * Math.abs(Math.sin(time + seed * 10.0));
-
-      colors[i] = colors[i + 1] = colors[i + 2] = THREE.MathUtils.clamp(pulse, 0, 1);
-    }
-
-    meshRef.current.geometry.attributes.color.needsUpdate = true;
+    const scale = 1 + (isPlaying ? audioFactor * 0.5 : 0.1 * Math.abs(Math.sin(time)));
+    meshRef.current.scale.set(scale, 1, scale);
   });
 
   return <lineSegments ref={meshRef} geometry={geometry} material={material} />;
