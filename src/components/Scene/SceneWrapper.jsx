@@ -7,27 +7,27 @@ import * as THREE from "three";
 import InfiniteTerrain from "./InfiniteTerrain";
 import MusicReactiveLines from "./MusicReactiveLines";
 import Lighting from "./Lighting";
-import useAudioAnalyzer from "../../hooks/useAudioAnalyzer";
 import CameraMover from "./CameraMover";
 
+import useAudioSource from "../../hooks/useAudioSource";
 
 export default function SceneWrapper() {
   const audioRef = useRef();
-  const { dataArray, isPlaying, togglePlayback } = useAudioAnalyzer(audioRef);
+  const { dataArray, isPlaying, mode, togglePlayback, toggleMode } =
+    useAudioSource(audioRef);
 
-  // 🎨 Vaporwave colors (adjust these for pink/blue gradient)
-  const fogColor = 0x000000; // dark violet / black
-  const lineColor = 0xffffff; // white lines
+  const fogColor = 0x000000;
+  const lineColor = 0xffffff;
 
   return (
     <>
+      {/* 🎵 Internal background music (only used in internal mode) */}
       <audio
         ref={audioRef}
         src="/audio/background.mp3"
-        controls
         crossOrigin="anonymous"
         loop
-        style={{ position: "absolute", top: 20, left: 20, zIndex: 10 }}
+        style={{ display: mode === "internal" ? "block" : "none" }}
       />
 
       <Canvas
@@ -44,7 +44,17 @@ export default function SceneWrapper() {
         <CameraMover speed={0.02} />
       </Canvas>
 
-      <div style={{ position: "absolute", bottom: 20, left: 20 }}>
+      {/* 🎚️ UI Controls */}
+      <div
+        style={{
+          position: "absolute",
+          bottom: 20,
+          left: 20,
+          display: "flex",
+          flexDirection: "column",
+          gap: "8px",
+        }}
+      >
         <button
           style={{
             background: "white",
@@ -54,9 +64,32 @@ export default function SceneWrapper() {
             cursor: "pointer",
           }}
           onClick={togglePlayback}
+          disabled={mode === "external"}
         >
           {isPlaying ? "Pause Music" : "Play Music"}
         </button>
+
+        <button
+          style={{
+            background: mode === "external" ? "#00ffff" : "#ff00ff",
+            border: "none",
+            padding: "8px 16px",
+            borderRadius: "6px",
+            cursor: "pointer",
+            color: "black",
+          }}
+          onClick={toggleMode}
+        >
+          {mode === "internal"
+            ? "🎧 Use Other Tab Audio"
+            : "🎶 Use Built-in Music"}
+        </button>
+
+        {mode === "external" && (
+          <p style={{ color: "white", fontSize: "0.9rem", marginTop: 8 }}>
+            Listening to shared tab audio...
+          </p>
+        )}
       </div>
     </>
   );

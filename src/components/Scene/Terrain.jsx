@@ -4,7 +4,17 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { createNoise2D } from "simplex-noise";
 
-export default function Terrain({ width = 200, depth = 200, segments = 120, audioData, zOffset = 0 }) {
+export default function Terrain(
+  {
+    width = 200,
+    depth = 200,
+    segments = 120,
+    audioData,
+    zOffset = 0,
+    flipped = false, // controls mirrored elevation
+  },
+  ref
+) {
   const meshRef = useRef();
   const noise2D = useMemo(() => createNoise2D(), []);
 
@@ -25,17 +35,28 @@ export default function Terrain({ width = 200, depth = 200, segments = 120, audi
     const time = state.clock.elapsedTime;
     const data = audioData || [];
     const audioFactor =
-      data.length > 0 ? data.reduce((a, b) => a + b, 0) / (data.length * 255) : 0.2;
+      data.length > 0
+        ? data.reduce((a, b) => a + b, 0) / (data.length * 255)
+        : 0.2;
+
+    const scale = 0.05;
+    const amp = 4;
 
     for (let i = 0; i < pos.count; i++) {
-      const x = pos.getX(i);
-      const z = pos.getZ(i);
+      let x = pos.getX(i);
+      let z = pos.getZ(i);
 
-      // Base randomized terrain using simplex noise
-      const baseHeight = noise2D(x * 0.05, (z + zOffset) * 0.05) * 4;
+      // Mirror the noise sampling on X-axis if flipped
+      const sampleX = flipped ? width - x : x;
 
-      // Music-reactive ripple
-      const wave = Math.sin(x * 0.1 + (z + zOffset) * 0.1 + time * 1.5) * 0.5 * (audioFactor * 5);
+      // Use mirrored noise sampling so edges line up
+      const baseHeight = noise2D(sampleX * scale, (z + zOffset) * scale) * amp;
+
+      // Add music-reactive wave
+      const wave =
+        Math.sin(sampleX * 0.1 + (z + zOffset) * 0.1 + time * 1.5) *
+        0.5 *
+        (audioFactor * 5);
 
       pos.setY(i, baseHeight + wave);
     }
@@ -44,5 +65,16 @@ export default function Terrain({ width = 200, depth = 200, segments = 120, audi
     meshRef.current.geometry.computeVertexNormals();
   });
 
-  return <mesh ref={meshRef} geometry={geometry} material={material} position={[0, 0, zOffset]} />;
+  return (
+    <mesh
+      ref={(el) => {
+        meshRef.current = el;
+        if (typeof ref === "function") ref(el);
+        else if (ref) ref.current = el;
+      }}
+      geometry={geometry}
+      material={material}
+      position={[0, 0, zOffset]}
+    />
+  );
 }
