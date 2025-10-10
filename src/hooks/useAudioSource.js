@@ -1,107 +1,103 @@
-// src/hooks/useAudioSource.js
-import { useEffect, useState } from "react";
+import { useState, useEffect, useRef } from "react";
 
-export function useAudioSource(audioRef, mode = "internal") {
-  const [audioContext, setAudioContext] = useState(null);
-  const [analyser, setAnalyser] = useState(null);
+export default function useAudioSource(audioRef, mode) {
   const [dataArray, setDataArray] = useState(new Uint8Array(64));
   const [isPlaying, setIsPlaying] = useState(false);
-  const [stream, setStream] = useState(null);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const externalStreamRef = useRef(null);
+  const sourceNodeRef = useRef(null);
 
   useEffect(() => {
-    let context = null;
-    let analyserNode = null;
-    let source = null;
-    let animationFrame = null;
+    if (!audioRef.current) return;
 
-    const cleanup = async () => {
-      if (animationFrame) cancelAnimationFrame(animationFrame);
-      if (source) {
-        try {
-          source.disconnect();
-        } catch (_) {}
+    // Initialize AudioContext once
+    if (!audioContextRef.current) {
+      audioContextRef.current = new (window.AudioContext || window.webkitAudioContext)();
+    }
+
+    const context = audioContextRef.current;
+
+    if (mode === "internal") {
+      // Stop any external stream first
+      if (externalStreamRef.current) {
+        externalStreamRef.current.getTracks().forEach((t) => t.stop());
+        externalStreamRef.current = null;
       }
-      if (analyserNode) {
-        try {
-          analyserNode.disconnect();
-        } catch (_) {}
+
+      // Resume context and play internal audio
+      context.resume();
+      const audioEl = audioRef.current;
+
+      // Only create MediaElementSource once per element
+      if (!sourceNodeRef.current) {
+        const src = context.createMediaElementSource(audioEl);
+        const analyser = context.createAnalyser();
+        analyser.fftSize = 128;
+        src.connect(analyser);
+        analyser.connect(context.destination);
+        sourceNodeRef.current = src;
+        analyserRef.current = analyser;
       }
-      if (stream) {
-        stream.getTracks().forEach((t) => t.stop());
-      }
-      if (context && context.state !== "closed") {
-        try {
-          await context.close();
-        } catch (_) {}
-      }
-    };
 
-    const initInternal = () => {
-      if (!audioRef.current) return;
-
-      context = new (window.AudioContext || window.webkitAudioContext)();
-      analyserNode = context.createAnalyser();
-      source = context.createMediaElementSource(audioRef.current);
-
-      analyserNode.fftSize = 128;
-      source.connect(analyserNode);
-      analyserNode.connect(context.destination);
-
-      setAudioContext(context);
-      setAnalyser(analyserNode);
-
-      const bufferLength = analyserNode.frequencyBinCount;
-      const arr = new Uint8Array(bufferLength);
+      const analyser = analyserRef.current;
+      const bufferLength = analyser.frequencyBinCount;
+      const tempArray = new Uint8Array(bufferLength);
 
       const tick = () => {
-        analyserNode.getByteFrequencyData(arr);
-        setDataArray([...arr]);
-        animationFrame = requestAnimationFrame(tick);
+        analyser.getByteFrequencyData(tempArray);
+        setDataArray([...tempArray]);
+        requestAnimationFrame(tick);
       };
       tick();
-    };
 
-    const initExternal = async () => {
-      try {
-        const newStream = await navigator.mediaDevices.getDisplayMedia({
-          audio: true,
-          video: false,
-        });
-        setStream(newStream);
+      setIsPlaying(!audioEl.paused);
+    }
 
-        context = new (window.AudioContext || window.webkitAudioContext)();
-        analyserNode = context.createAnalyser();
-        source = context.createMediaStreamSource(newStream);
+    if (mode === "external") {
+      // Pause internal audio
+      audioRef.current.pause();
 
-        analyserNode.fftSize = 128;
-        source.connect(analyserNode);
+      (async () => {
+        try {
+          const mediaStream = await navigator.mediaDevices.getDisplayMedia({
+            audio: true,
+            video: false,
+          });
+          externalStreamRef.current = mediaStream;
 
-        setAudioContext(context);
-        setAnalyser(analyserNode);
+          const analyser = context.createAnalyser();
+          analyser.fftSize = 128;
+          const src = context.createMediaStreamSource(mediaStream);
+          src.connect(analyser);
+          analyserRef.current = analyser;
 
-        const bufferLength = analyserNode.frequencyBinCount;
-        const arr = new Uint8Array(bufferLength);
+          const bufferLength = analyser.frequencyBinCount;
+          const tempArray = new Uint8Array(bufferLength);
 
-        const tick = () => {
-          analyserNode.getByteFrequencyData(arr);
-          setDataArray([...arr]);
-          animationFrame = requestAnimationFrame(tick);
-        };
-        tick();
-      } catch (err) {
-        console.warn("User cancelled or tab sharing not supported:", err);
-      }
-    };
+          const tick = () => {
+            analyser.getByteFrequencyData(tempArray);
+            setDataArray([...tempArray]);
+            requestAnimationFrame(tick);
+          };
+          tick();
 
-    // Initialize correct mode
-    if (mode === "internal") initInternal();
-    else initExternal();
+          setIsPlaying(true);
+        } catch (err) {
+          console.warn("User cancelled tab sharing:", err);
+          setIsPlaying(false);
+        }
+      })();
+    }
 
-    // Cleanup safely
     return () => {
-      cleanup();
+      // Clean up only external streams (internal audio remains stable)
+      if (mode === "external" && externalStreamRef.current) {
+        externalStreamRef.current.getTracks().forEach((t) => t.stop());
+        externalStreamRef.current = null;
+      }
     };
   }, [mode, audioRef]);
 
-  return { dataArray, isPlaying, setIsPlaying };
+  return { dataArray, isPlaying };
 }
