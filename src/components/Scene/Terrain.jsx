@@ -4,17 +4,14 @@ import * as THREE from "three";
 import { useFrame } from "@react-three/fiber";
 import { createNoise2D } from "simplex-noise";
 
-export default function Terrain(
-  {
-    width = 200,
-    depth = 200,
-    segments = 120,
-    audioData,
-    zOffset = 0,
-    flipped = false, // controls mirrored elevation
-  },
-  ref
-) {
+export default function Terrain({
+  width = 200,
+  depth = 200,
+  segments = 120,
+  audioData,
+  zOffset = 0,
+  flipped = false,
+}) {
   const meshRef = useRef();
   const noise2D = useMemo(() => createNoise2D(), []);
 
@@ -24,10 +21,19 @@ export default function Terrain(
     return geo;
   }, [width, depth, segments]);
 
+  // darker, transparent lines for background
   const material = useMemo(
-    () => new THREE.MeshStandardMaterial({ color: 0xffffff, wireframe: true }),
+    () =>
+      new THREE.LineBasicMaterial({
+        color: new THREE.Color("#3a1d5f"),
+        transparent: true,
+        opacity: 0.80,
+      }),
     []
   );
+
+  // convert to edges
+  const edges = useMemo(() => new THREE.EdgesGeometry(geometry), [geometry]);
 
   useFrame((state) => {
     if (!meshRef.current) return;
@@ -45,14 +51,9 @@ export default function Terrain(
     for (let i = 0; i < pos.count; i++) {
       let x = pos.getX(i);
       let z = pos.getZ(i);
-
-      // Mirror the noise sampling on X-axis if flipped
       const sampleX = flipped ? width - x : x;
 
-      // Use mirrored noise sampling so edges line up
       const baseHeight = noise2D(sampleX * scale, (z + zOffset) * scale) * amp;
-
-      // Add music-reactive wave
       const wave =
         Math.sin(sampleX * 0.1 + (z + zOffset) * 0.1 + time * 1.5) *
         0.5 *
@@ -62,19 +63,7 @@ export default function Terrain(
     }
 
     pos.needsUpdate = true;
-    meshRef.current.geometry.computeVertexNormals();
   });
 
-  return (
-    <mesh
-      ref={(el) => {
-        meshRef.current = el;
-        if (typeof ref === "function") ref(el);
-        else if (ref) ref.current = el;
-      }}
-      geometry={geometry}
-      material={material}
-      position={[0, 0, zOffset]}
-    />
-  );
+  return <lineSegments ref={meshRef} geometry={edges} material={material} position={[0, 0, zOffset]} />;
 }

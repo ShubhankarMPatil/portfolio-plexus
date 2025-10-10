@@ -22,7 +22,9 @@ export default function MusicReactiveLines({
   const material = useMemo(
     () =>
       new THREE.LineBasicMaterial({
-        color: 0xffffff, // keep white for now
+        color: new THREE.Color("#3a1d5f"), // darker purple tone
+        transparent: true,
+        opacity: 0.25, // faded look
       }),
     []
   );
@@ -30,7 +32,6 @@ export default function MusicReactiveLines({
   useFrame(({ clock }) => {
     if (!meshRef.current) return;
 
-    // Simple pulsing scale for music reaction
     const time = clock.getElapsedTime();
     const audioFactor =
       audioData && audioData.length
