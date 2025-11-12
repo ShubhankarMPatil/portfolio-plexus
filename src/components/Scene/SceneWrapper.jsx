@@ -14,7 +14,7 @@ import useAudioSource from "../../hooks/useAudioSource";
 export default function SceneWrapper() {
   const audioRef = useRef();
   const [mode, setMode] = useState("internal");
-  const { dataArray, isPlaying } = useAudioSource(audioRef, mode);
+  const { dataArray, isPlaying, requestExternalAudio } = useAudioSource(audioRef, mode);
 
   const fogColor = 0x000000;
 
@@ -55,9 +55,18 @@ export default function SceneWrapper() {
 
       <div style={{ position: "absolute", bottom: 20, left: 20 }}>
         <button
-          onClick={() => {
-            if (mode === "internal") setMode("external");
-            else {
+          onClick={async () => {
+            if (mode === "internal") {
+              // Set mode to external first
+              setMode("external");
+              // Call requestExternalAudio directly from user interaction
+              // This preserves the user gesture required for getDisplayMedia
+              const success = await requestExternalAudio();
+              // If user cancelled, switch back to internal mode
+              if (!success) {
+                setMode("internal");
+              }
+            } else {
               setMode("internal");
               audioRef.current.play();
             }

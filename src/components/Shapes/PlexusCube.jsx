@@ -6,9 +6,9 @@ import { useCameraStore } from "../../hooks/useCameraStore";
 
 export default function PlexusCube({
   size = 12,
-  count = 100,
+  count = 250,
   lineColor = "#ffffff",
-  rotationSpeed = 0.001,
+  rotationSpeed = 0.05,
   offset = 40,
   opacity = 1, // supports fade
 }) {

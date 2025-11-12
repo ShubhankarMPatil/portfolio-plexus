@@ -3,7 +3,7 @@ import React, { useState, useEffect, useRef } from "react";
 import { useFrame } from "@react-three/fiber";
 import PlexusSphere from "./PlexusSphere";
 import PlexusCube from "./PlexusCube";
-import PlexusCylinder from "./PlexusCylinder";
+import PlexusOctahedron from "./PlexusOctahedron";
 
 export default function ShapeManager() {
   const [shape, setShape] = useState("sphere");
@@ -15,7 +15,7 @@ export default function ShapeManager() {
   const rightOffset = 30;
   const verticalOffset = 0;
 
-  const shapes = ["sphere", "cube", "cylinder"];
+  const shapes = ["sphere", "cube", "octahedron"];
 
   // Scroll-triggered fade & morph
   useEffect(() => {
@@ -68,8 +68,8 @@ export default function ShapeManager() {
       {shape === "cube" && (
         <PlexusCube opacity={opacity} offset={rightOffset} verticalOffset={verticalOffset} />
       )}
-      {shape === "cylinder" && (
-        <PlexusCylinder opacity={opacity} offset={rightOffset} verticalOffset={verticalOffset} />
+      {shape === "octahedron" && (
+        <PlexusOctahedron opacity={opacity} offset={rightOffset} verticalOffset={verticalOffset} />
       )}
     </group>
   );

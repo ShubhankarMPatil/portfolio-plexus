@@ -4,34 +4,39 @@ import React, { useMemo, useRef, useEffect } from "react";
 import { useFrame } from "@react-three/fiber";
 import { useCameraStore } from "../../hooks/useCameraStore";
 
-export default function PlexusCylinder({
+export default function PlexusOctahedron({
   radius = 8,
-  count = 100,
+  count = 150,
   lineColor = "#ffffff",
-  rotationSpeed = 0.001,
+  rotationSpeed = 0.05,
   offset = 40,
-  verticalOffset = 0,
   opacity = 1,
 }) {
   const meshRef = useRef();
   const { position, direction } = useCameraStore();
 
+  // Function to generate random point on octahedron surface
+  const randomPointOnOctahedron = (r) => {
+    // Random direction
+    const x = Math.random() * 2 - 1;
+    const y = Math.random() * 2 - 1;
+    const z = Math.random() * 2 - 1;
+    const absSum = Math.abs(x) + Math.abs(y) + Math.abs(z);
+    return new THREE.Vector3((x / absSum) * r, (y / absSum) * r, (z / absSum) * r);
+  };
+
   const lines = useMemo(() => {
     const positions = [];
-    const cylinder = new THREE.CylinderGeometry(radius, radius, 32, 32);
-    const vertices = cylinder.attributes.position.array;
     const points = [];
 
     for (let i = 0; i < count; i++) {
-      const idx = Math.floor(Math.random() * (vertices.length / 3)) * 3;
-      points.push(
-        new THREE.Vector3(vertices[idx], vertices[idx + 1], vertices[idx + 2])
-      );
+      points.push(randomPointOnOctahedron(radius));
     }
 
     for (let i = 0; i < count; i++) {
       for (let j = i + 1; j < count; j++) {
-        if (points[i].distanceTo(points[j]) < radius * 0.45) {
+        const dist = points[i].distanceTo(points[j]);
+        if (dist < radius * 0.5) {
           positions.push(
             points[i].x, points[i].y, points[i].z,
             points[j].x, points[j].y, points[j].z
@@ -53,11 +58,10 @@ export default function PlexusCylinder({
     new THREE.LineBasicMaterial({
       color: new THREE.Color(lineColor),
       transparent: true,
-      opacity: opacity,
+      opacity,
     })
   );
 
-  // Update opacity when prop changes
   useEffect(() => {
     if (material.current) material.current.opacity = opacity;
   }, [opacity]);
@@ -67,16 +71,7 @@ export default function PlexusCylinder({
 
     const camPos = new THREE.Vector3(...position);
     const camDir = new THREE.Vector3(...direction);
-
-    // Offset right and vertically
-    const right = new THREE.Vector3(1, 0, 0).applyQuaternion(
-      new THREE.Quaternion().setFromUnitVectors(new THREE.Vector3(0, 0, 1), camDir.clone().normalize())
-    );
-    const target = camPos.clone()
-      .add(camDir.multiplyScalar(offset))
-      .add(right.multiplyScalar(offset)) // push right
-      .add(new THREE.Vector3(0, verticalOffset, 0)); // vertical adjustment
-
+    const target = camPos.clone().add(camDir.multiplyScalar(offset));
     meshRef.current.position.lerp(target, 0.08);
 
     meshRef.current.rotation.y += rotationSpeed;
@@ -90,5 +85,11 @@ export default function PlexusCylinder({
     pos.needsUpdate = true;
   });
 
-  return <lineSegments ref={meshRef} geometry={geometry} material={material.current} />;
+  return (
+    <lineSegments
+      ref={meshRef}
+      geometry={geometry}
+      material={material.current}
+    />
+  );
 }
